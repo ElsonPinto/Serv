@@ -16,6 +16,7 @@ mensagem = "Nenhuma mensagem"
 DB_FILE = "dados.db"
 
 def conectar_db():
+    """Conecta no SQLite"""
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     return conn
@@ -47,39 +48,42 @@ def criar_tabela():
 # =========================
 # Rotas
 # =========================
+
 @app.route("/")
 def index():
+    """Página principal"""
     return render_template("index.html")
 
-# Ligar/desligar LED
 @app.route("/comando", methods=["POST"])
 def comando():
+    """Ligar/desligar LED"""
     global estado_led
     data = request.get_json() or request.form
     estado_led = data.get("led", estado_led)
     return jsonify({"status": "ok", "led": estado_led})
 
-# Enviar mensagem para ESP32
 @app.route("/mensagem", methods=["POST"])
 def set_mensagem():
+    """Enviar mensagem para ESP32"""
     global mensagem
     data = request.get_json() or request.form
     mensagem = data.get("msg", mensagem)
     return jsonify({"mensagem": mensagem})
 
-# Status do LED e mensagem (mensagem entregue apenas uma vez)
 @app.route("/status", methods=["GET"])
 def status():
+    """Retorna status do LED e mensagem (mensagem é entregue apenas uma vez)"""
     global mensagem
     msg_para_envio = mensagem
     mensagem = ""  # limpa a mensagem após ser entregue
     return jsonify({"led": estado_led, "mensagem": msg_para_envio})
 
-# Receber dados do ESP32
 @app.route("/api/esp32", methods=["POST"])
 def receber_esp32():
+    """Recebe dados do ESP32"""
     dados = request.get_json()
     try:
+        criar_tabela()  # garante que a tabela exista antes de inserir
         conn = conectar_db()
         cursor = conn.cursor()
         cursor.execute("""
@@ -106,23 +110,25 @@ def receber_esp32():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Listar todos os registros
 @app.route("/api/registros", methods=["GET"])
 def listar():
+    """Lista todos os registros"""
     try:
+        criar_tabela()  # garante que a tabela exista antes de consultar
         conn = conectar_db()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM registros ORDER BY id DESC")
         rows = cursor.fetchall()
         conn.close()
         return jsonify([dict(r) for r in rows])
-    except sqlite3.OperationalError:
-        return jsonify({"error": "Tabela ainda não existe"}), 500
+    except sqlite3.OperationalError as e:
+        return jsonify({"error": str(e)}), 500
 
 # =========================
-# Start
+# Start do servidor
 # =========================
+criar_tabela()  # garante que a tabela exista antes de receber requisições
+
 if __name__ == "__main__":
-    criar_tabela()  # garante que a tabela exista
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
