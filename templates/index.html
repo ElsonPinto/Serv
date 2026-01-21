@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Controle ESP32</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; }
+        button { margin: 5px; padding: 10px 20px; font-size: 16px; }
+        input { padding: 5px; font-size: 16px; }
+        table { border-collapse: collapse; margin-top: 20px; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background-color: #f4f4f4; }
+    </style>
+</head>
+<body>
+
+<h1>Controle ESP32</h1>
+
+<h2>LED: <span id="estado-led">off</span></h2>
+<button onclick="ligarLed()">Ligar LED</button>
+<button onclick="desligarLed()">Desligar LED</button>
+
+<h2>Enviar Mensagem</h2>
+<input type="text" id="msg" placeholder="Mensagem para o ESP32">
+<button onclick="enviarMensagem()">Enviar</button>
+
+<h2>Registros Recebidos</h2>
+<table id="tabela-registros">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Numero Pacote</th>
+            <th>Fazenda</th>
+            <th>Dispositivo</th>
+            <th>Temperatura</th>
+            <th>U1</th>
+            <th>U2</th>
+            <th>U3</th>
+            <th>U4</th>
+            <th>U5</th>
+            <th>Fruto</th>
+            <th>Data</th>
+            <th>Hora</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+function atualizarLed(estado) {
+    document.getElementById("estado-led").innerText = estado;
+}
+
+function ligarLed() {
+    fetch("/comando", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ led: "on" })
+    }).then(res => res.json()).then(data => atualizarLed(data.led));
+}
+
+function desligarLed() {
+    fetch("/comando", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ led: "off" })
+    }).then(res => res.json()).then(data => atualizarLed(data.led));
+}
+
+function enviarMensagem() {
+    const msg = document.getElementById("msg").value;
+    fetch("/mensagem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ msg })
+    }).then(res => res.json()).then(data => {
+        alert("Mensagem enviada: " + data.mensagem);
+        document.getElementById("msg").value = "";
+    });
+}
+
+function atualizarTabela() {
+    fetch("/api/registros")
+    .then(res => res.json())
+    .then(data => {
+        const tbody = document.querySelector("#tabela-registros tbody");
+        tbody.innerHTML = "";
+        data.forEach(r => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${r.id}</td>
+                <td>${r.numero_pacote}</td>
+                <td>${r.fazenda}</td>
+                <td>${r.dispositivo_id}</td>
+                <td>${r.temperatura}</td>
+                <td>${r.u1}</td>
+                <td>${r.u2}</td>
+                <td>${r.u3}</td>
+                <td>${r.u4}</td>
+                <td>${r.u5}</td>
+                <td>${r.fruto}</td>
+                <td>${r.data}</td>
+                <td>${r.hora}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    });
+}
+
+setInterval(() => {
+    fetch("/status").then(res => res.json()).then(data => atualizarLed(data.led));
+    atualizarTabela();
+}, 3000);
+
+window.onload = atualizarTabela;
+</script>
+
+</body>
+</html>
