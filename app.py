@@ -21,7 +21,6 @@ def conectar_db():
     return conn
 
 def criar_tabela():
-    """Cria a tabela se não existir."""
     conn = conectar_db()
     cursor = conn.cursor()
     cursor.execute("""
@@ -45,7 +44,6 @@ def criar_tabela():
     conn.close()
 
 def atualizar_tabela():
-    """Adiciona colunas faltando se já existir tabela antiga."""
     conn = conectar_db()
     cursor = conn.cursor()
     colunas = {
@@ -62,20 +60,17 @@ def atualizar_tabela():
         try:
             cursor.execute(f"ALTER TABLE registros ADD COLUMN {nome} {tipo}")
         except sqlite3.OperationalError:
-            pass  # coluna já existe
+            pass
     conn.commit()
     conn.close()
 
 # =========================
-# Página principal
+# Rotas
 # =========================
 @app.route("/")
 def index():
     return render_template("index.html")
 
-# =========================
-# Comando LED
-# =========================
 @app.route("/comando", methods=["POST"])
 def comando():
     global estado_led
@@ -83,9 +78,6 @@ def comando():
     estado_led = data.get("led", estado_led)
     return jsonify({"status": "ok", "led": estado_led})
 
-# =========================
-# Enviar mensagem
-# =========================
 @app.route("/mensagem", methods=["POST"])
 def set_mensagem():
     global mensagem
@@ -93,16 +85,13 @@ def set_mensagem():
     mensagem = data.get("msg", mensagem)
     return jsonify({"mensagem": mensagem})
 
-# =========================
-# Status do ESP32
-# =========================
 @app.route("/status", methods=["GET"])
 def status():
-    return jsonify({"led": estado_led, "mensagem": mensagem})
+    global mensagem
+    msg_para_envio = mensagem
+    mensagem = ""  # entrega única da mensagem
+    return jsonify({"led": estado_led, "mensagem": msg_para_envio})
 
-# =========================
-# Receber dados do ESP32
-# =========================
 @app.route("/api/esp32", methods=["POST"])
 def receber_esp32():
     dados = request.get_json()
@@ -130,9 +119,6 @@ def receber_esp32():
     conn.close()
     return jsonify({"status": "dados salvos"})
 
-# =========================
-# Listar registros
-# =========================
 @app.route("/api/registros", methods=["GET"])
 def listar():
     conn = conectar_db()
